@@ -18,8 +18,6 @@ Yawt.
 .weapons            - Show weapon buffs. Works on player only (boolean)
 .buffAnchor         - Valid anchors are: "TOP", "BOTTOM", "LEFT", "RIGHT", "INSIDE", "INSIDECENTER"
 .debuffAnchor       - Valid anchors are: "TOP", "BOTTOM", "LEFT", "RIGHT", "INSIDE", "INSIDECENTER"
-.buffOffset         - Y axis offset for "inside" anchors for buffs
-.debuffOffset       - Y axis offset for "inside" anchors for debuffs
 .timer              - Show cooldown spiral (string)
                       "all"        - All auras have timers
                       "self"       - Only own auras have timers
@@ -32,6 +30,7 @@ Yawt.
 .largeDebuffSize....- Make your own bigger by this amount (number)
 .onlyShowPlayer     - Shows only auras created by player/vehicle (boolean)
 .showType           - Colors the border in the magic type color (boolean)
+.showSteal          - Display the white border around stealable buffs (boolean)
 .spacing            - Spacing between each icon. Defaults to 0 (number)
 .Anchor             - Anchor point for the icons. Defaults to 'BOTTOMLEFT' (string)
                       ""
@@ -68,49 +67,56 @@ button.isPlayer - indicates if the aura caster is the player or their vehicle (b
 local _, ns = ...
 local oUF = ns.oUF
 
-local LCD = LibStub("LibClassicDurations", true)
-LCD:Register("LunaUnitFrames")
 local weaponWatchTimer
 local mainHandEnd, mainHandDuration, mainHandCharges, offHandEnd, offHandDuration, offHandCharges
 
--- Things in this table have a duration other than 30 min
+-- Things in this table have a duration other than 60 min
 local weaponEnchantData = {
-	[2684] = 3600, -- +100 Attack Power vs Undead (60 min)
-	[2685] = 3600, -- +60 Spell Power vs Undead (60 min)
-	[263] = 600,   -- Fishing +25 (10 min)
-	[264] = 600,   -- Fishing +50 (10 min)
-	[265] = 600,   -- Fishing +75 (10 min)
-	[266] = 300,   -- Fishing +100 (5 min)
-	[5] = 300,     -- Flametongue 1 (5 min)
-	[4] = 300,     -- Flametongue 2 (5 min)
-	[3] = 300,     -- Flametongue 3 (5 min)
-	[523] = 300,   -- Flametongue 4 (5 min)
-	[1665] = 300,  -- Flametongue 5 (5 min)
-	[1666] = 300,  -- Flametongue 6 (5 min)
-	[124] = 10,    -- Flametongue Totem 1 (10 sec)
-	[285] = 10,    -- Flametongue Totem 2 (10 sec)
-	[543] = 10,    -- Flametongue Totem 3 (10 sec)
-	[1683] = 10,   -- Flametongue Totem 4 (10 sec)
-	[2] = 300,     -- Frostbrand 1 (5 min)
-	[12] = 300,    -- Frostbrand 2 (5 min)
-	[524] = 300,   -- Frostbrand 3 (5 min)
-	[1667] = 300,  -- Frostbrand 4 (5 min)
-	[1668] = 300,  -- Frostbrand 5 (5 min)
-	[29] = 300,    -- Rockbiter 1 (5 min)
-	[6] = 300,     -- Rockbiter 2 (5 min)
-	[1] = 300,     -- Rockbiter 3 (5 min)
-	[503] = 300,   -- Rockbiter 4 (5 min)
-	[1663] = 300,  -- Rockbiter 5 (5 min)
-	[683] = 300,   -- Rockbiter 6 (5 min)
-	[1664] = 300,  -- Rockbiter 7 (5 min)
-	[283] = 300,   -- Windfury 1 (5 min)
-	[284] = 300,   -- Windfury 2 (5 min)
-	[525] = 300,   -- Windfury 3 (5 min)
-	[1669] = 300,  -- Windfury 4 (5 min)
-	[1783] = 10,   -- Windfury Totem 1 (10 sec)
-	[563] = 10,    -- Windfury Totem 2 (10 sec)
-	[564] = 10,    -- Windfury Totem 3 (10 sec)
+	[25]   = 1800, -- Shadow Oil (30 min)
+	[263]  = 600,  -- Fishing +25 (10 min)
+	[264]  = 600,  -- Fishing +50 (10 min)
+	[265]  = 600,  -- Fishing +75 (10 min)
+	[266]  = 600,  -- Fishing +100 (10 min)
 	[1003] = 300,  -- Venomhide Poison (5 min)
+	[3093] = 300,  -- Scourgebane (5 min)
+	[3102] = 1800, -- Bloodboil Poison (30 min)
+	[29]   = 1800, -- Rockbiter Weapon (30 min)
+	[6]    = 1800, -- Rockbiter Weapon 2 (30 min)
+	[3029] = 1800, -- Rockbiter Weapon 3 (30 min)
+	[3032] = 1800, -- Rockbiter Weapon 4 (30 min)
+	[283]  = 1800, -- Windfury Weapon (30 min)
+	[284]  = 1800, -- Windfury Weapon 2 (30 min)
+	[525]  = 1800, -- Windfury Weapon 3 (30 min)
+	[1669] = 1800, -- Windfury Weapon 4 (30 min)
+	[2636] = 1800, -- Windfury Weapon 5 (30 min)
+	[3785] = 1800, -- Windfury Weapon 6 (30 min)
+	[3786] = 1800, -- Windfury Weapon 7 (30 min)
+	[3787] = 1800, -- Windfury Weapon 8 (30 min)
+	[3345] = 1800, -- Earthliving Weapon (30 min)
+	[3346] = 1800, -- Earthliving Weapon 2 (30 min)
+	[3347] = 1800, -- Earthliving Weapon 3 (30 min)
+	[3348] = 1800, -- Earthliving Weapon 4 (30 min)
+	[3349] = 1800, -- Earthliving Weapon 5 (30 min)
+	[3350] = 1800, -- Earthliving Weapon 6 (30 min)
+	[5]    = 1800, -- Flametongue Weapon (30 min)
+	[4]    = 1800, -- Flametongue Weapon 2 (30 min)
+	[3]    = 1800, -- Flametongue Weapon 3 (30 min)
+	[523]  = 1800, -- Flametongue Weapon 4 (30 min)
+	[1665] = 1800, -- Flametongue Weapon 5 (30 min)
+	[1666] = 1800, -- Flametongue Weapon 6 (30 min)
+	[2634] = 1800, -- Flametongue Weapon 7 (30 min)
+	[3779] = 1800, -- Flametongue Weapon 8 (30 min)
+	[3780] = 1800, -- Flametongue Weapon 9 (30 min)
+	[3781] = 1800, -- Flametongue Weapon 10 (30 min)
+	[2]    = 1800, -- Frostbrand Weapon (30 min)
+	[12]   = 1800, -- Frostbrand Weapon 2 (30 min)
+	[524]  = 1800, -- Frostbrand Weapon 3 (30 min)
+	[1667] = 1800, -- Frostbrand Weapon 4 (30 min)
+	[1668] = 1800, -- Frostbrand Weapon 5 (30 min)
+	[2635] = 1800, -- Frostbrand Weapon 6 (30 min)
+	[3782] = 1800, -- Frostbrand Weapon 7 (30 min)
+	[3783] = 1800, -- Frostbrand Weapon 8 (30 min)
+	[3784] = 1800, -- Frostbrand Weapon 9 (30 min)
 }
 
 local function UpdateTooltip(self)
@@ -198,20 +204,7 @@ local function updateIcon(element, unit, index, position, filter, isDebuff)
 			name, texture, count, debuffType, duration, expiration, caster = "OffHandEnchant", GetInventoryItemTexture("player", index), offHandCharges, nil, offHandDuration, offHandEnd, "player"
 		end
 	else
-		if LCD and not UnitIsUnit("player", unit) then
-			local durationNew, expirationTimeNew
-			name, texture, count, debuffType, duration, expiration, caster, isStealable, nameplateShowSelf, spellID, canApply, isBossDebuff, casterIsPlayer, nameplateShowAll, timeMod, effect1, effect2, effect3 = LCD:UnitAura(unit, index, filter)
-
-			if spellID then
-				durationNew, expirationTimeNew = LCD:GetAuraDurationByUnit(unit, spellID, caster, name)
-			end
-
-			if durationNew and durationNew > 0 then
-				duration, expiration = durationNew, expirationTimeNew
-			end
-		else
-			name, texture, count, debuffType, duration, expiration, caster, isStealable, nameplateShowSelf, spellID, canApply, isBossDebuff, casterIsPlayer, nameplateShowAll, timeMod, effect1, effect2, effect3 = UnitAura(unit, index, filter)
-		end
+		name, texture, count, debuffType, duration, expiration, caster, isStealable, nameplateShowSelf, spellID, canApply, isBossDebuff, casterIsPlayer, nameplateShowAll, timeMod, effect1, effect2, effect3 = UnitAura(unit, index, filter)
 	end
 
 	if element.forceShow or element.forceCreate then
@@ -239,7 +232,7 @@ local function updateIcon(element, unit, index, position, filter, isDebuff)
 			
 			button = (element.CreateIcon or createAuraIcon) (auras, position)
 			auras[auras.createdIcons] = button
-			
+
 			-- Bugreport #910, something strange going on here trying to compensate
 			if not auras[auras.createdIcons] then
 				auras.createdIcons = auras.createdIcons - 1
@@ -266,19 +259,27 @@ local function updateIcon(element, unit, index, position, filter, isDebuff)
 			end
 
 			if(button.overlay) then
-					local color = element.showType and oUF.colors.debuff[debuffType] or {1,1,1}
-					button.overlay:SetVertexColor(color[1], color[2], color[3])
-				if element.overlay then
-					button.overlay:SetTexture(element.overlay)
-					button.overlay:SetTexCoord(0,1,0,1)
+				local color = element.showType and oUF.colors.debuff[debuffType] or {1,1,1}
+				if isStealable and element.showSteal then
+					button.overlay:SetVertexColor(1, 1, 1)
+					button.overlay:SetTexture("Interface\\TargetingFrame\\UI-TargetingFrame-Stealable")
+					button.overlay:SetTexCoord(0.1,0.95,0.1,0.95)
+					button.overlay:SetBlendMode("ADD")
 				else
-					button.overlay:SetTexture([[Interface\Buttons\UI-Debuff-Overlays]])
-					button.overlay:SetTexCoord(0.306875, 0.5703125, 0, 0.515625)
+					button.overlay:SetVertexColor(color[1], color[2], color[3])
+					button.overlay:SetBlendMode("BLEND")
+					if element.overlay then
+						button.overlay:SetTexture(element.overlay)
+						button.overlay:SetTexCoord(0,1,0,1)
+					else
+						button.overlay:SetTexture([[Interface\Buttons\UI-Debuff-Overlays]])
+						button.overlay:SetTexCoord(0.306875, 0.5703125, 0, 0.515625)
+					end
 				end
 			end
 
 			if(button.icon) then button.icon:SetTexture(texture) end
-			if(button.count) then button.count:SetText(count > 1 and count) end
+			if(button.count) then button.count:SetText(count > 1 and count or "") end
 
 			local size
 			local preventBuffGrowth, preventDebuffGrowth = (element.buffAnchor == "INFRAME" or element.buffAnchor == "INFRAMECENTER"), (element.debuffAnchor == "INFRAME" or element.debuffAnchor == "INFRAMECENTER")
@@ -364,7 +365,7 @@ local function UpdateAuras(self, event, unit)
 		local button
 		if element.buffs then
 			for i=1,(element.maxBuffs or 32) do
-				local name, _, _, _, _, _, caster = LCD:UnitAura(self.unit, i, filter)
+				local name, _, _, _, _, _, caster = UnitAura(self.unit, i, filter)
 				if name or element.forceShow then
 					if element.buffFilter ~= 2 or caster == "player" then
 						updateIcon(element, self.unit, i, currentSlot, filter, false)
@@ -396,7 +397,7 @@ local function UpdateAuras(self, event, unit)
 		filter = "HARMFUL"..(element.debuffFilter == 3 and "|RAID" or "")
 		if element.debuffs then
 			for i=1,(element.maxDebuffs or 40) do
-				local name, _, _, _, _, _, caster = LCD:UnitAura(self.unit, i, filter)
+				local name, _, _, _, _, _, caster = UnitAura(self.unit, i, filter)
 				if name or element.forceShow then
 					if element.debuffFilter ~= 2 or caster == "player" then
 						updateIcon(element, self.unit, i, currentSlot, filter, true)
@@ -768,11 +769,11 @@ end
 local playerFrames = {}
 local function UpdateWeaponEnchants(self, silent)
 	weaponWatchTimer = nil
-	
+
 	local hasMainHandEnchant, mainHandExpiration, mainHandChargeNum, mainHandEnchantID, hasOffHandEnchant, offHandExpiration, offHandChargeNum, offHandEnchantId = GetWeaponEnchantInfo()
 	if hasMainHandEnchant then
 		mainHandEnd = GetTime() + (mainHandExpiration / 1000)
-		mainHandDuration = weaponEnchantData[mainHandEnchantID] or 1800
+		mainHandDuration = weaponEnchantData[mainHandEnchantID] or 3600
 		mainHandCharges = mainHandChargeNum
 	else
 		mainHandEnd = nil
@@ -781,7 +782,7 @@ local function UpdateWeaponEnchants(self, silent)
 	end
 	if hasOffHandEnchant then
 		offHandEnd = GetTime() + (offHandExpiration / 1000)
-		offHandDuration = weaponEnchantData[offHandEnchantId] or 1800
+		offHandDuration = weaponEnchantData[offHandEnchantId] or 3600
 		offHandCharges = offHandChargeNum
 	else
 		offHandEnd = nil
@@ -831,10 +832,6 @@ local function Enable(self)
 			playerFrames[self] = self
 			self:RegisterEvent("UNIT_INVENTORY_CHANGED", SetWeaponUpdateTimer)
 			UpdateWeaponEnchants(self, true)
-		elseif self.unit ~= "player" then
-			LCD.RegisterCallback("LUF", "UNIT_BUFF", function(event, unit)
-				UpdateAuras(element, "UNIT_AURA", unit)
-			end)
 		end
 
 		element.buffFrame = element.buffFrame or CreateFrame("Frame", "$parentBuffFrame", element)

@@ -110,10 +110,12 @@ local UnitSpecific = {
 				frame.Totems[i] = CreateFrame("StatusBar", nil, totemBar)
 				frame.Totems[i]:SetMinMaxValues(0,1)
 				frame.Totems[i]:SetValue(0)
+				frame.Totems[i].timer = frame.Totems[i]:CreateFontString("LUFTotemCooldown"..i, "OVERLAY")
+				frame.Totems[i].timer:SetPoint("CENTER", frame.Totems[i], "CENTER")
 				frame.Totems[i].bg = frame.Totems[i]:CreateTexture(nil, "BACKGROUND")
 				frame.Totems[i].bg:SetAllPoints(frame.Totems[i])
 			end
-			frame.Totems.PostUpdate = LUF.overrides["Totems"].PostUpdate
+			frame.Totems.PostTotemUpdate = LUF.overrides["Totems"].PostTotemUpdate
 			totemBar.Totems = frame.Totems
 			totemBar.Update = LUF.overrides["Totems"].Update
 			frame.modules.totemBar = totemBar
@@ -197,7 +199,47 @@ local UnitSpecific = {
 		frame.modules.xpBar = xpBarFrame
 		frame.modules.xpBar.name = "XPRepBar"
 		frame.tags.xpBar = {}
-		
+
+		if select(2, UnitClass('player')) == "DEATHKNIGHT" then
+	-- Ghoul Timer
+			local Ghoul = CreateFrame("StatusBar", nil, frame)
+
+			local Background = Ghoul:CreateTexture(nil, "BACKGROUND")
+			Background:SetAllPoints(Ghoul)
+
+			Ghoul.bg = Background
+			Ghoul:SetScript("OnShow", LUF.PlaceModules)
+			Ghoul:SetScript("OnHide", LUF.PlaceModules)
+			Ghoul:SetMinMaxValues(0,1)
+			Ghoul:SetValue(0)
+			Ghoul.PostUpdate = LUF.overrides["Ghoul"].PostUpdate
+			frame.Ghoul = Ghoul
+			frame.modules.ghoul = Ghoul
+			frame.modules.ghoul.name = "Ghoul"
+
+	-- Runes
+			local runes = CreateFrame("Frame", nil, frame)
+			local Runes = {}
+			for i=1,6 do
+				Runes[i] = CreateFrame("StatusBar", nil, runes)
+				Runes[i].bg = runes:CreateTexture(nil, "BACKGROUND")
+				Runes[i].bg:SetAllPoints(Runes[i])
+				Runes[i].timer = Runes[i]:CreateFontString("LUFRuneCooldown"..i, "OVERLAY")
+				Runes[i].timer:SetPoint("CENTER", Runes[i], "CENTER")
+				Runes[i].hl = Runes[i]:CreateTexture(nil, "OVERLAY")
+				Runes[i].hl:SetTexture([[Interface\AddOns\LunaUnitFrames\media\textures\highlight]])
+				Runes[i].hl:SetBlendMode("ADD")
+				Runes[i].hl:SetAllPoints(Runes[i])
+				Runes[i].hl:Hide()
+			end
+			runes.Update = LUF.overrides["Runes"].Update
+			Runes.PostUpdate = LUF.overrides["Runes"].PostUpdate
+			runes.Runes = Runes
+			runes.name = "Runes"
+			frame.modules.runes = runes
+			frame.Runes = Runes
+		end
+
 	-- Combo Points
 		local comboPoints = CreateFrame("Frame", nil, frame)
 		local ComboPoints = {}
@@ -215,6 +257,27 @@ local UnitSpecific = {
 	end,
 
 	pet = function(frame)
+	-- Castbar
+		local Castbar = CreateFrame("StatusBar", nil, frame)
+
+		local Background = Castbar:CreateTexture(nil, "BACKGROUND")
+		Background:SetAllPoints(Castbar)
+
+		local Icon = Castbar:CreateTexture(nil, "OVERLAY")
+		Icon:SetSize(10, 10)
+		Icon:SetPoint("TOPLEFT", Castbar, "TOPLEFT")
+
+		local SafeZone = Castbar:CreateTexture(nil, "OVERLAY")
+
+		Castbar.bg = Background
+		Castbar.Icon = Icon
+		Castbar.SafeZone = SafeZone
+		Castbar:SetScript("OnShow", LUF.PlaceModules)
+		Castbar:SetScript("OnHide", LUF.PlaceModules)
+		frame.Castbar = Castbar
+		frame.modules.castBar = Castbar
+		frame.modules.castBar.name = "Castbar"
+
 	-- XP Bar
 		local xpBarFrame = CreateFrame("Frame", nil, frame)
 		xpBarFrame:SetScript("OnSizeChanged", function() end)
@@ -287,6 +350,37 @@ local UnitSpecific = {
 	-- Nothing here yet
 	end,
 
+	focus = function(frame)
+	-- Castbar
+		local Castbar = CreateFrame("StatusBar", nil, frame)
+
+		local Background = Castbar:CreateTexture(nil, "BACKGROUND")
+		Background:SetAllPoints(Castbar)
+
+		local Icon = Castbar:CreateTexture(nil, "OVERLAY")
+		Icon:SetSize(10, 10)
+		Icon:SetPoint("TOPLEFT", Castbar, "TOPLEFT")
+
+		local SafeZone = Castbar:CreateTexture(nil, "OVERLAY")
+
+		Castbar.bg = Background
+		Castbar.Icon = Icon
+		Castbar.SafeZone = SafeZone
+		Castbar:SetScript("OnShow", LUF.PlaceModules)
+		Castbar:SetScript("OnHide", LUF.PlaceModules)
+		frame.Castbar = Castbar
+		frame.modules.castBar = Castbar
+		frame.modules.castBar.name = "Castbar"
+	end,
+
+	focustarget = function(frame)
+	-- Nothing here yet
+	end,
+
+	focustargettarget = function(frame)
+	-- Nothing here yet
+	end,
+
 	party = function(frame)
 	-- Castbar
 		local Castbar = CreateFrame("StatusBar", nil, frame)
@@ -315,7 +409,26 @@ local UnitSpecific = {
 	end,
 
 	partypet = function(frame)
-	-- Nothing here yet
+	-- Castbar
+		local Castbar = CreateFrame("StatusBar", nil, frame)
+
+		local Background = Castbar:CreateTexture(nil, "BACKGROUND")
+		Background:SetAllPoints(Castbar)
+
+		local Icon = Castbar:CreateTexture(nil, "OVERLAY")
+		Icon:SetSize(10, 10)
+		Icon:SetPoint("TOPLEFT", Castbar, "TOPLEFT")
+
+		local SafeZone = Castbar:CreateTexture(nil, "OVERLAY")
+
+		Castbar.bg = Background
+		Castbar.Icon = Icon
+		Castbar.SafeZone = SafeZone
+		Castbar:SetScript("OnShow", LUF.PlaceModules)
+		Castbar:SetScript("OnHide", LUF.PlaceModules)
+		frame.Castbar = Castbar
+		frame.modules.castBar = Castbar
+		frame.modules.castBar.name = "Castbar"
 	end,
 
 	raid = function(frame)
@@ -342,7 +455,26 @@ local UnitSpecific = {
 	end,
 	
 	raidpet = function(frame)
-	-- Nothing here yet
+	-- Castbar
+		local Castbar = CreateFrame("StatusBar", nil, frame)
+
+		local Background = Castbar:CreateTexture(nil, "BACKGROUND")
+		Background:SetAllPoints(Castbar)
+
+		local Icon = Castbar:CreateTexture(nil, "OVERLAY")
+		Icon:SetSize(10, 10)
+		Icon:SetPoint("TOPLEFT", Castbar, "TOPLEFT")
+
+		local SafeZone = Castbar:CreateTexture(nil, "OVERLAY")
+
+		Castbar.bg = Background
+		Castbar.Icon = Icon
+		Castbar.SafeZone = SafeZone
+		Castbar:SetScript("OnShow", LUF.PlaceModules)
+		Castbar:SetScript("OnHide", LUF.PlaceModules)
+		frame.Castbar = Castbar
+		frame.modules.castBar = Castbar
+		frame.modules.castBar.name = "Castbar"
 	end,
 	
 	maintank = function(frame)
@@ -406,6 +538,68 @@ local UnitSpecific = {
 	mainassisttargettarget = function(frame)
 	-- Nothing here yet
 	end,
+	
+	arena = function(frame)
+	-- Castbar
+		local Castbar = CreateFrame("StatusBar", nil, frame)
+
+		local Background = Castbar:CreateTexture(nil, "BACKGROUND")
+		Background:SetAllPoints(Castbar)
+
+		local Icon = Castbar:CreateTexture(nil, "OVERLAY")
+		Icon:SetSize(10, 10)
+		Icon:SetPoint("TOPLEFT", Castbar, "TOPLEFT")
+
+		local SafeZone = Castbar:CreateTexture(nil, "OVERLAY")
+
+		Castbar.bg = Background
+		Castbar.Icon = Icon
+		Castbar.SafeZone = SafeZone
+		Castbar:SetScript("OnShow", LUF.PlaceModules)
+		Castbar:SetScript("OnHide", LUF.PlaceModules)
+		frame.Castbar = Castbar
+		frame.modules.castBar = Castbar
+		frame.modules.castBar.name = "Castbar"
+		
+	-- Trinket
+		frame.Trinket = CreateFrame("Frame", nil, frame.toplevel)
+		frame.Trinket.icon = frame.Trinket:CreateTexture(nil, "OVERLAY")
+		frame.Trinket.icon:SetAllPoints()
+		frame.Trinket.cd = CreateFrame("Cooldown", frame:GetName().."TrinketCooldown", frame.Trinket, "CooldownFrameTemplate")
+		frame.Trinket.cd:SetAllPoints()
+		frame.Trinket.cd:SetReverse(true)
+	end,
+	
+	arenapet = function(frame)
+	-- Nothing here yet
+	end,
+	
+	arenatarget = function(frame)
+	-- Nothing here yet
+	end,
+
+	boss = function(frame)
+		-- Castbar
+		local Castbar = CreateFrame("StatusBar", nil, frame)
+
+		local Background = Castbar:CreateTexture(nil, "BACKGROUND")
+		Background:SetAllPoints(Castbar)
+
+		local Icon = Castbar:CreateTexture(nil, "OVERLAY")
+		Icon:SetSize(10, 10)
+		Icon:SetPoint("TOPLEFT", Castbar, "TOPLEFT")
+
+		local SafeZone = Castbar:CreateTexture(nil, "OVERLAY")
+
+		Castbar.bg = Background
+		Castbar.Icon = Icon
+		Castbar.SafeZone = SafeZone
+		Castbar:SetScript("OnShow", LUF.PlaceModules)
+		Castbar:SetScript("OnHide", LUF.PlaceModules)
+		frame.Castbar = Castbar
+		frame.modules.castBar = Castbar
+		frame.modules.castBar.name = "Castbar"
+	end
 }
 
 LUF.IndicatorData = {
@@ -420,13 +614,16 @@ LUF.IndicatorData = {
 	ready = { name = "ReadyCheckIndicator", layer = "OVERLAY" },
 	status = { name = "StatusIndicator", layer = "OVERLAY" },
 	rezz = { name = "ResurrectIndicator", layer = "OVERLAY" },
-	role = { name = "RaidRoleIndicator", layer = "OVERLAY" },
+	grouprole = { name = "GroupRoleIndicator", layer = "OVERLAY" },
+	raidrole = { name = "RaidRoleIndicator", layer = "OVERLAY" },
 }
 
 function LUF.InitializeUnit(frame, unit, notHeaderChild)
 	if notHeaderChild then
 		if frame:GetName():match("arena") then
 			frame:SetAttribute("oUF-guessUnit", frame:GetName():match("LUFHeader(arena.*)UnitButton%d$"))
+		elseif frame:GetName():match("boss") then
+			frame:SetAttribute("oUF-guessUnit", frame:GetName():match("LUFHeader(boss.*)UnitButton%d$"))
 		else
 			frame:SetAttribute("oUF-guessUnit", unit)
 		end
@@ -649,12 +846,15 @@ function LUF.InitializeUnit(frame, unit, notHeaderChild)
 		fstrings.left = parent:CreateFontString(nil, "OVERLAY")
 		fstrings.left:SetDrawLayer("OVERLAY", 7)
 		fstrings.left:SetJustifyH("LEFT")
+		fstrings.left:SetFont("Fonts\\FRIZQT__.TTF", 8) -- prevent "font not set" errors
 		fstrings.center = parent:CreateFontString(nil, "OVERLAY")
 		fstrings.center:SetDrawLayer("OVERLAY", 7)
 		fstrings.center:SetJustifyH("CENTER")
+		fstrings.center:SetFont("Fonts\\FRIZQT__.TTF", 8)
 		fstrings.right = parent:CreateFontString(nil, "OVERLAY")
 		fstrings.right:SetDrawLayer("OVERLAY", 7)
 		fstrings.right:SetJustifyH("RIGHT")
+		fstrings.right:SetFont("Fonts\\FRIZQT__.TTF", 8)
 	end
 	
 	frame:SetScript("OnEnter", function(self)

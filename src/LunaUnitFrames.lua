@@ -1,7 +1,7 @@
 -- Luna Unit Frames 4.0 by Aviana
 
 LUF = select(2, ...)
-LUF.version = 4330
+LUF.version = 4346
 
 local L = LUF.L
 local ACR = LibStub("AceConfigRegistry-3.0", true)
@@ -20,10 +20,25 @@ L.party = PARTY
 L.raid = RAID
 L.maintank = MAINTANK
 L.mainassist = MAIN_ASSIST
+L.focus = FOCUS
+L.arena = ARENA
+L.boss = BOSS
 
 LUF.stateMonitor = CreateFrame("Frame", nil, nil, "SecureHandlerBaseTemplate")
 LUF.stateMonitor:WrapScript(LUF.stateMonitor, "OnAttributeChanged", [[
 	if( name == "partyEnabled" or name == "partytargetEnabled" or name == "partypetEnabled" ) then return end
+
+	if name == "state-vehiclestatus" or name == "hidepetinvehicle" then
+		local hidepetinvehicle = self:GetAttribute("hidepetinvehicle")
+		local vehiclestatus = self:GetAttribute("state-vehiclestatus")
+		if vehiclestatus == "vehicle" and hidepetinvehicle then
+			self:GetFrameRef("petFrame"):SetAttribute("unit", "none")
+			self:GetFrameRef("petFrame"):Hide()
+		else
+			self:GetFrameRef("petFrame"):SetAttribute("unit", "pet")
+		end
+		return
+	end
 	
 	local partyFrame = self:GetFrameRef("partyFrame")
 	local partytargetFrame = self:GetFrameRef("partytargetFrame")
@@ -40,7 +55,7 @@ LUF.stateMonitor:WrapScript(LUF.stateMonitor, "OnAttributeChanged", [[
 			frame:SetAttribute("raidHidden",true)
 			frame:Hide()
 		end
-		for i=1, 9 do
+		for i=1, 10 do
 			frame = self:GetFrameRef("raid"..i)
 			if frame then
 				frame:SetAttribute("raidHidden",true)
@@ -53,7 +68,7 @@ LUF.stateMonitor:WrapScript(LUF.stateMonitor, "OnAttributeChanged", [[
 			frame:SetAttribute("raidHidden",nil)
 			frame:Show()
 		end
-		for i=1, 9 do
+		for i=1, 10 do
 			frame = self:GetFrameRef("raid"..i)
 			if frame and frame:GetAttribute("isEnabled") then
 				frame:SetAttribute("raidHidden",nil)
@@ -96,6 +111,9 @@ LUF.unitList = {
 	"target",
 	"targettarget",
 	"targettargettarget",
+	"focus",
+	"focustarget",
+	"focustargettarget",
 	"party",
 	"partytarget",
 	"partypet",
@@ -107,6 +125,10 @@ LUF.unitList = {
 	"mainassist",
 	"mainassisttarget",
 	"mainassisttargettarget",
+	"arena",
+	"arenapet",
+	"arenatarget",
+	"boss",
 }
 
 LUF.fakeUnits = {
@@ -114,11 +136,14 @@ LUF.fakeUnits = {
 	["targettargettarget"] = true,
 	["pettarget"] = true,
 	["pettargettarget"] = true,
+	["focustarget"] = true,
+	["focustargettarget"] = true,
 	["partytarget"] = true,
 	["maintanktarget"] = true,
 	["maintanktargettarget"] = true,
 	["mainassisttarget"] = true,
 	["mainassisttargettarget"] = true,
+	["arenatarget"] = true,
 }
 
 LUF.HeaderFrames = {
@@ -133,6 +158,10 @@ LUF.HeaderFrames = {
 	["mainassist"] = true,
 	["mainassisttarget"] = true,
 	["mainassisttargettarget"] = true,
+	["arena"] = true,
+	["arenapet"] = true,
+	["arenatarget"] = true,
+	["boss"] = true,
 }
 
 -- taken from framexml
@@ -184,6 +213,7 @@ function LUF:LoadoUFSettings()
 	self.oUF.colors.class.DRUID = {colors.DRUID.r, colors.DRUID.g, colors.DRUID.b}
 	self.oUF.colors.class.SHAMAN = {colors.SHAMAN.r, colors.SHAMAN.g, colors.SHAMAN.b}
 	self.oUF.colors.class.WARRIOR = {colors.WARRIOR.r, colors.WARRIOR.g, colors.WARRIOR.b}
+	self.oUF.colors.class.DEATHKNIGHT = {colors.DEATHKNIGHT.r, colors.DEATHKNIGHT.g, colors.DEATHKNIGHT.b}
 	
 	self.oUF.colors.power.MANA = {colors.MANA.r, colors.MANA.g, colors.MANA.b}
 	self.oUF.colors.power[0] = self.oUF.colors.power.MANA
@@ -195,6 +225,13 @@ function LUF:LoadoUFSettings()
 	self.oUF.colors.power[3] = self.oUF.colors.power.ENERGY
 	self.oUF.colors.power.COMBO_POINTS = {colors.COMBOPOINTS.r, colors.COMBOPOINTS.g, colors.COMBOPOINTS.b}
 	self.oUF.colors.power[4] = self.oUF.colors.power.COMBOPOINTS
+	self.oUF.colors.power.RUNIC_POWER = {colors.RUNIC_POWER.r, colors.RUNIC_POWER.g, colors.RUNIC_POWER.b}
+	self.oUF.colors.power[5] = self.oUF.colors.power.RUNIC_POWER
+
+	self.oUF.colors.runes[1] = {colors.blood.r, colors.blood.g, colors.blood.b}
+	self.oUF.colors.runes[2] = {colors.frost.r, colors.frost.g, colors.frost.b}
+	self.oUF.colors.runes[3] = {colors.unholy.r, colors.unholy.g, colors.unholy.b}
+	self.oUF.colors.runes[4] = {colors.death.r, colors.death.g, colors.death.b}
 	
 	self.oUF.colors.happiness[1] = {colors.unhappy.r, colors.unhappy.g, colors.unhappy.b}
 	self.oUF.colors.happiness[2] = {colors.content.r, colors.content.g, colors.content.b}
@@ -216,6 +253,8 @@ function LUF:LoadoUFSettings()
 	
 	self.oUF.TagsWithHealTimeFrame = self.db.profile.inchealTime
 	self.oUF.TagsWithHealDisableHots = self.db.profile.disablehots
+
+	self.oUF.bearEnergy = self.db.profile.units.player.druidBar.bearEnergy
 end
 
 function LUF:ResetColors()
@@ -334,7 +373,7 @@ function LUF:OnProfileDeleted(event, key, name)
 	end
 end
 
-function LUF:AutoswitchProfile(event)
+function LUF:AutoswitchProfile(event, arg1)
 	local profile
 	if event == "DISPLAY_SIZE_CHANGED" and self.db.char.switchtype == "RESOLUTION" then
 		local resolutions = {GetScreenResolutions()}
@@ -365,6 +404,15 @@ function LUF:AutoswitchProfile(event)
 			groupType = "SOLO"
 		end
 		profile = self.db.char.grpdb[groupType]
+	elseif event == "PLAYER_ENTERING_WORLD" and self.db.char.switchtype == "ARENA" then
+		if select(2,IsInInstance()) == "arena" then
+			profile = self.db.char.grpdb["ARENA"]
+			self.db.char.grpdb["NONARENA"] = self.db:GetCurrentProfile()
+		elseif self.db.char.grpdb["NONARENA"] then
+			profile = self.db.char.grpdb["NONARENA"]
+		end
+	elseif event == "ACTIVE_TALENT_GROUP_CHANGED" and self.db.char.switchtype == "SPECIALIZATION" then
+		profile = self.db.char.specdb["SPEC"..arg1]
 	end
 	if profile and profile ~= self.db:GetCurrentProfile() then
 		self.db:SetProfile(profile)
@@ -384,6 +432,7 @@ local function handleFrame(baseName)
 	end
 
 	if(frame) then
+		UnregisterUnitWatch(frame)
 		frame:UnregisterAllEvents()
 		frame:Hide()
 
@@ -471,6 +520,10 @@ function LUF:HideBlizzardFrames()
 		handleFrame(PetFrame)
 	end
 
+	if( LUF.db.profile.hidden.focus and not active_hiddens.focus ) then
+		handleFrame(FocusFrame)
+	end
+
 	if( LUF.db.profile.hidden.target and not active_hiddens.target ) then
 		handleFrame(TargetFrame)
 		handleFrame(ComboFrame)
@@ -481,6 +534,25 @@ function LUF:HideBlizzardFrames()
 		for i = 1, MAX_PARTY_MEMBERS do
 			handleFrame(string.format("PartyMemberFrame%d", i))
 		end
+	end
+
+	if( LUF.db.profile.hidden.boss and not active_hiddens.boss ) then
+		for i=1, MAX_BOSS_FRAMES do
+			local name = "Boss" .. i .. "TargetFrame"
+			handleFrame(_G[name])
+			handleFrame(_G[name .. "HealthBar"])
+			handleFrame(_G[name .. "ManaBar"])
+		end
+	end
+
+	if( LUF.db.profile.hidden.arena and not active_hiddens.arena ) then
+		for i = 1, 5 do
+			handleFrame(string.format("ArenaEnemyFrame%d", i))
+		end
+
+		-- Blizzard_ArenaUI should not be loaded
+		Arena_LoadUI = function() end
+		--SetCVar('showArenaEnemyFrames', '0', 'SHOW_ARENA_ENEMY_FRAMES_TEXT')
 	end
 
 	-- As a reload is required to reset the hidden hooks, we can just set this to true if anything is true
@@ -580,6 +652,7 @@ local moduleSettings = {
 			end
 		end
 		mod.autoHide = config.autoHide
+		mod.showTarget = config.showTarget
 		mod.growth = config.growth
 		mod:Update()
 	end,
@@ -591,6 +664,7 @@ local moduleSettings = {
 			[3] = {0,0,1},
 			[4] = {0.41,0.8,0.94},
 		}
+		mod.Totems.disableTimer = not config.timer
 		for i=1, 4 do
 			local totem = mod.Totems[i]
 			totem:SetStatusBarTexture(texture)
@@ -603,6 +677,7 @@ local moduleSettings = {
 			else
 				totem.bg:Hide()
 			end
+			totem.timer:SetFont(LUF:LoadMedia(SML.MediaType.FONT, config.font), config.fontsize)
 		end
 		mod.autoHide = config.autoHide
 		mod:Update()
@@ -611,6 +686,7 @@ local moduleSettings = {
 		mod.texture = LUF:LoadMedia(SML.MediaType.STATUSBAR, config.statusbar)
 		mod:SetStatusBarTexture(LUF:LoadMedia(SML.MediaType.STATUSBAR, config.statusbar))
 		mod.disableHide = config.autoHide
+		mod.bearEnergy = config.bearEnergy
 		if config.background then
 			mod.bg:SetTexture(mod.texture)
 			mod.bg:Show()
@@ -638,6 +714,40 @@ local moduleSettings = {
 		end
 		mod.autoHide = config.autoHide
 		mod.growth = config.growth
+		mod:Update()
+	end,
+	ghoul = function(mod, config)
+		if not config.enabled then mod:Hide() return end
+		mod.texture = LUF:LoadMedia(SML.MediaType.STATUSBAR, config.statusbar)
+		mod:SetStatusBarTexture(LUF:LoadMedia(SML.MediaType.STATUSBAR, config.statusbar))
+		if config.background then
+			mod.bg:SetTexture(mod.texture)
+			mod.bg:SetVertexColor(1, 1, 1)
+			mod.bg:Show()
+			mod.bg:SetAlpha(config.backgroundAlpha)
+		else
+			mod.bg:Hide()
+		end
+		mod.autoHide = config.autoHide
+	end,
+	runes = function(mod, config)
+		if not config.enabled then mod:Hide() return end
+		mod.Runes.fadeInactive = config.fadeInactive
+		mod.Runes.disableTimer = not config.timer
+		mod.Runes.disableGrace = not config.grace
+		local texture = LUF:LoadMedia(SML.MediaType.STATUSBAR, config.statusbar)
+		for i=1, 6 do
+			local rune = mod.Runes[i]
+			rune:SetStatusBarTexture(texture)
+			rune.bg:SetTexture(texture)
+			rune.bg:SetAlpha(config.backgroundAlpha)
+			if config.background then
+				rune.bg:Show()
+			else
+				rune.bg:Hide()
+			end
+			rune.timer:SetFont(LUF:LoadMedia(SML.MediaType.FONT, config.font), config.fontsize)
+		end
 		mod:Update()
 	end,
 	xpBar = function(mod, config)
@@ -699,42 +809,30 @@ function LUF.ApplySettings(frame)
 	local tickerBgColor = LUF.db.profile.colors.tickerBG
 	-- Regen Ticker
 	if frame.RegenTicker then
-		if (config.powerBar.ticker or config.powerBar.fivesecond) and select(2, UnitClass("player")) ~= "WARRIOR" then
+		if config.powerBar.fivesecond and select(2, UnitClass("player")) ~= "WARRIOR" and select(2, UnitClass("player")) ~= "ROGUE" and select(2, UnitClass("player")) ~= "DEATHKNIGHT" then
 			frame:EnableElement("RegenTicker")
-			frame.RegenTicker.hideTicks = not config.powerBar.ticker
-			frame.RegenTicker.hideFive = not config.powerBar.fivesecond
-			frame.RegenTicker.autoHide = config.powerBar.hideticker
 			frame.RegenTicker.vertical = config.powerBar.vertical
 			frame.RegenTicker.Spark.texture:SetVertexColor(tickerColor.r,tickerColor.g,tickerColor.b,1)
-			frame.RegenTicker.splitTimer.Spark.texture:SetVertexColor(tickerColor.r,tickerColor.g,tickerColor.b,1)
 			frame.RegenTicker.Spark:SetAlpha(tickerColor.a)
-			frame.RegenTicker.splitTimer:SetAlpha(tickerColor.a)
 			frame.RegenTicker.Spark:SetBackdropColor(tickerBgColor.r,tickerBgColor.g,tickerBgColor.b,tickerBgColor.a)
-			frame.RegenTicker.splitTimer.Spark:SetBackdropColor(tickerBgColor.r,tickerBgColor.g,tickerBgColor.b,tickerBgColor.a)
 		else
 			frame:DisableElement("RegenTicker")
 		end
 	end
-	
+
 	-- Additional Regen Ticker
 	if frame.AdditionalRegenTicker then
-		if (config.druidBar.ticker or config.druidBar.fivesecond) then
+		if config.druidBar.fivesecond then
 			frame:EnableElement("RegenTickerAlt")
-			frame.AdditionalRegenTicker.hideTicks = not config.druidBar.ticker
-			frame.AdditionalRegenTicker.hideFive = not config.druidBar.fivesecond
-			frame.AdditionalRegenTicker.autoHide = config.druidBar.hideticker
 			frame.AdditionalRegenTicker.vertical = config.druidBar.vertical
 			frame.AdditionalRegenTicker.Spark.texture:SetVertexColor(tickerColor.r,tickerColor.g,tickerColor.b,1)
-			frame.AdditionalRegenTicker.splitTimer.Spark.texture:SetVertexColor(tickerColor.r,tickerColor.g,tickerColor.b,1)
 			frame.AdditionalRegenTicker.Spark:SetAlpha(tickerColor.a)
-			frame.AdditionalRegenTicker.splitTimer:SetAlpha(tickerColor.a)
 			frame.AdditionalRegenTicker.Spark:SetBackdropColor(tickerBgColor.r,tickerBgColor.g,tickerBgColor.b,tickerBgColor.a)
-			frame.AdditionalRegenTicker.splitTimer.Spark:SetBackdropColor(tickerBgColor.r,tickerBgColor.g,tickerBgColor.b,tickerBgColor.a)
 		else
 			frame:DisableElement("RegenTickerAlt")
 		end
 	end
-	
+
 	-- Power Prediction
 	if frame.PowerPrediction then
 		if config.manaPrediction.enabled then
@@ -831,6 +929,7 @@ function LUF.ApplySettings(frame)
 		Auras.buffFilter = AuraConfig.filterbuffs
 		Auras.buffSize = AuraConfig.buffsize
 		Auras.largeBuffSize = AuraConfig.enlargedbuffsize
+		Auras.showSteal = AuraConfig.showSteal
 		Auras.wrapBuffSide = AuraConfig.wrapbuffside
 		Auras.wrapBuff = AuraConfig.wrapbuff
 		Auras.buffOffset = AuraConfig.buffOffset
@@ -967,6 +1066,21 @@ function LUF.ApplySettings(frame)
 		end
 	end
 	
+	--Arena Trinket
+	if frame.Trinket then
+		local trinketConfig = config.trinket
+		if trinketConfig.enabled then
+			local point = getRelativePointAnchor(trinketConfig.anchorPoint)
+			frame.Trinket:ClearAllPoints()
+			frame.Trinket:SetPoint(point, frame, trinketConfig.anchorPoint, trinketConfig.x, trinketConfig.y)
+			frame.Trinket:SetHeight(trinketConfig.size)
+			frame.Trinket:SetWidth(trinketConfig.size)
+			frame:EnableElement("Trinket")
+		else
+			frame:DisableElement("Trinket")
+		end
+	end
+	
 	frame:UpdateAllElements("RefreshUnit")
 end
 
@@ -1065,6 +1179,7 @@ function LUF.PlaceModules(frame)
 		end
 		totalSum = totalSum + config.slots["right"].value
 	end
+	totalSum = max(1,totalSum)
 	usableXLeft = usableX * (config.slots["left"].value/totalSum)
 	usableXCenter = usableX * (config.slots["center"].value/totalSum)
 	usableXRight = usableX * (config.slots["right"].value/totalSum)
@@ -1328,10 +1443,9 @@ local initialConfigFunction = [[
 		self:SetAttribute("unitsuffix", "targettarget")
 	elseif strmatch(unit,"target") then
 		self:SetAttribute("unitsuffix", "target")
-	elseif strmatch(unit,"partypet") then
-		self:SetAttribute("refreshUnitChange", parent:GetAttribute("refreshUnitChange"))
 	end
 	self:SetAttribute("oUF-guessUnit",unit)
+	self:SetAttribute("toggleForVehicle", true)
 	
 	self:SetHeight(parent:GetAttribute("x-height") or 1)
 	self:SetWidth(parent:GetAttribute("x-width") or 1)
@@ -1348,6 +1462,11 @@ local refreshUnitChange = [[
 		end
 		self:SetAttribute("unit", unit)
 	end
+	if(unit) then
+		RegisterStateDriver(self, 'vehicleui', '[@' .. unit .. ',unithasvehicleui]vehicle; novehicle')
+	else
+		UnregisterStateDriver(self, 'vehicleui')
+	end
 ]]
 
 function LUF:SpawnUnits()
@@ -1357,20 +1476,47 @@ function LUF:SpawnUnits()
 	for unit, config in pairs(self.db.profile.units) do
 		if self.HeaderFrames[unit] then
 			if unit == "raid" then
-				for id=1,8 do
+				for id=1,10 do
 					local data = config.positions[id]
 					self.frameIndex["raid"..id] = oUF:SpawnHeader("LUFHeaderraid"..id, nil, nil, "oUF-initialConfigFunction", format(initialConfigFunction, "raid"))
-					self.frameIndex["raid"..id]:Show() --Set Show() early to allow child spawning
+					self.frameIndex["raid"..id]:SetAttribute('_initialAttribute-_onstate-vehicleui', nil)
 					self.frameIndex["raid"..id]:SetAttribute("oUF-headerType", unit)
+					self.frameIndex["raid"..id]:Show() --Set Show() early to allow child spawning
+				end
+			elseif unit:match("^arena.*") then
+				self.frameIndex[unit] = CreateFrame("Frame", "LUFHeader"..unit, UIParent, "SecureFrameTemplate")
+				self.frameIndex[unit]:SetAttribute("oUF-headerType", unit)
+				self.frameIndex[unit].isCustom = true
+				self.frameIndex[unit]:SetHeight(1)
+				self.frameIndex[unit]:SetWidth(1)
+				for i=1, 5 do
+					if unit:match(".*target$") then
+						local frame = oUF:Spawn("arena"..i.."target", "LUFHeader"..unit.."UnitButton"..i)
+						frame:SetParent(_G["LUFHeader"..unit])
+					else
+						local frame = oUF:Spawn(unit..i, "LUFHeader"..unit.."UnitButton"..i)
+						frame:SetParent(_G["LUFHeader"..unit])
+					end
+				end
+			elseif unit == "boss" then
+				self.frameIndex[unit] = CreateFrame("Frame", "LUFHeader"..unit, UIParent, "SecureFrameTemplate")
+				self.frameIndex[unit]:SetAttribute("oUF-headerType", unit)
+				self.frameIndex[unit].isCustom = true
+				self.frameIndex[unit]:SetHeight(1)
+				self.frameIndex[unit]:SetWidth(1)
+				for i=1, MAX_BOSS_FRAMES do
+					local frame = oUF:Spawn(unit..i, "LUFHeader"..unit.."UnitButton"..i)
+					frame:SetParent(_G["LUFHeader"..unit])
 				end
 			else
 				local template
+
 				if unit == "raidpet" then
 					template = "SecureGroupPetHeaderTemplate"
 				end
 				self.frameIndex[unit] = oUF:SpawnHeader("LUFHeader"..unit, template, nil, "oUF-initialConfigFunction", format(initialConfigFunction, unit))
 				if unit == "partypet" then
-					self.frameIndex[unit]:SetAttribute("refreshUnitChange", refreshUnitChange)
+					self.frameIndex[unit]:SetAttribute("_initialAttribute-refreshUnitChange", refreshUnitChange)
 				end
 				self.frameIndex[unit]:Show() --Set Show() early to allow child spawning
 				self.frameIndex[unit]:SetAttribute("oUF-headerType", unit)
@@ -1389,16 +1535,19 @@ function LUF:SpawnUnits()
 	self.stateMonitor:SetFrameRef("partyFrame", self.frameIndex["party"])
 	self.stateMonitor:SetFrameRef("partytargetFrame", self.frameIndex["partytarget"])
 	self.stateMonitor:SetFrameRef("partypetFrame", self.frameIndex["partypet"])
+	self.stateMonitor:SetFrameRef("petFrame", self.frameIndex["pet"])
 	self.stateMonitor:SetAttribute("partyEnabled", config.party.enabled)
 	self.stateMonitor:SetAttribute("partytargetEnabled", config.partytarget.enabled)
 	self.stateMonitor:SetAttribute("partypetEnabled", config.partypet.enabled)
 	self.stateMonitor:SetAttribute("hideraid", config.party.hideraid)
+	self.stateMonitor:SetAttribute("hidepetinvehicle", config.pet.hidepetinvehicle)
 	self.stateMonitor:SetAttribute("hideParty", config.raid.hideParty)
 	self.stateMonitor:SetAttribute("showWhen", (not config.raid.showSolo and not config.raid.showPlayer and not config.raid.showParty) and "RAID" or nil)
+	RegisterStateDriver(self.stateMonitor, "vehiclestatus", "[target=vehicle, exists] vehicle; player")
 	RegisterStateDriver(self.stateMonitor, "raidstatus", "[target=raid6, exists] full; [target=raid1, exists] semi; none")
-	for i=1, 9 do
+	for i=1, 11 do
 		local frame
-		if i == 9 then
+		if i == 11 then
 			frame = self.frameIndex["raidpet"]
 			self.stateMonitor:SetFrameRef("raidpet", frame)
 		else
@@ -1418,8 +1567,64 @@ function LUF:SpawnUnits()
 	self.frameIndex.target:HookScript("OnHide", LUF.overrides.Target.PostUpdate)
 end
 
+local function SetCustomHeader(header, config)
+	local point = config.attribPoint
+	local relativePoint, xOffsetMult, yOffsetMult = getRelativePointAnchor(point)
+	local xMultiplier, yMultiplier =  abs(xOffsetMult), abs(yOffsetMult)
+	local xMod = config.attribPoint == "LEFT" and 1 or config.attribPoint == "RIGHT" and -1 or 0
+	local yMod = config.attribPoint == "TOP" and -1 or config.attribPoint == "BOTTOM" and 1 or 0
+	local xOffset = config.offset * xMod
+	local yOffset = config.offset * yMod
+	local currentAnchor = header
+
+	if not config.enabled then
+		header:Hide()
+		return
+	else
+		header:Show()
+	end
+
+	local ButtonName = header:GetName() .. "UnitButton"
+	local num = 1
+	local frame = _G[ButtonName .. num]
+	while( frame ) do
+		if not LUF.InCombatLockdown then
+			if not config.enabled and frame:IsEnabled() then
+				frame:Disable()
+			elseif config.enabled and not frame:IsEnabled() then
+				frame:Enable()
+			end
+			
+			frame:ClearAllPoints()
+			if ( num == 1 ) then
+				frame:SetPoint(point, currentAnchor, point, 0, 0)
+			else
+				frame:SetPoint(point, currentAnchor, relativePoint, xMultiplier * xOffset, yMultiplier * yOffset)
+			end
+
+			frame:SetWidth(config.width)
+			frame:SetHeight(config.height)
+			frame:SetScale(config.scale)
+			
+			if config.enableFocus then
+				frame:SetAttribute("*type2", "focus")
+			else
+				frame:SetAttribute("*type2", "togglemenu")
+			end
+		end
+		LUF.PlaceModules(frame)
+		currentAnchor = frame
+		num = num + 1
+		frame = _G[ButtonName .. num]
+	end
+end
+
 local function SetHeaderAttributes(header, config)
-	if not config.enabled or config.filters and not config.filters[tonumber(strmatch(header:GetName(),".+(%d)"))] then
+	if header.isCustom then
+		SetCustomHeader(header, config)
+		return
+	end
+	if not config.enabled or config.filters and not config.filters[tonumber(strmatch(header:GetName(),"%a+(%d+)"))] then
 		header:Hide()
 		header:SetAttribute("isEnabled", nil)
 		return
@@ -1512,14 +1717,16 @@ local function SetHeaderSettings(header)
 end
 
 local classOrder = {
-	[1] = "DRUID",
-	[2] = "HUNTER",
-	[3] = "MAGE",
-	[4] = "PALADIN,SHAMAN",
-	[5] = "PRIEST",
-	[6] = "ROGUE",
-	[7] = "WARLOCK",
-	[8] = "WARRIOR",
+	[1] = "DEATHKNIGHT",
+	[2] = "DRUID",
+	[3] = "HUNTER",
+	[4] = "MAGE",
+	[5] = "PALADIN",
+	[6] = "PRIEST",
+	[7] = "ROGUE",
+	[8] = "SHAMAN",
+	[9] = "WARLOCK",
+	[10] = "WARRIOR",
 }
 
 function LUF:SetupHeader(headerUnit)
@@ -1528,22 +1735,14 @@ function LUF:SetupHeader(headerUnit)
 	
 	if headerUnit == "raid" then
 		if not self.frameIndex["raid1"] then return end
-		for id=1,8 do
+		for id=1,10 do
 			header = self.frameIndex["raid"..id]
 			if config.groupBy == "GROUP" then
 				header:SetAttribute("groupFilter", tostring(id))
 				header.grpNumber:SetText(GROUP.." "..id)
 			else
 				header:SetAttribute("groupFilter", classOrder[id])
-				if id == 4 then
-					if UnitFactionGroup("player") == "Horde" then
-						header.grpNumber:SetText(LOCALIZED_CLASS_NAMES_MALE["SHAMAN"])
-					else
-						header.grpNumber:SetText(LOCALIZED_CLASS_NAMES_MALE["PALADIN"])
-					end
-				else
-					header.grpNumber:SetText(LOCALIZED_CLASS_NAMES_MALE[classOrder[id]])
-				end
+				header.grpNumber:SetText(LOCALIZED_CLASS_NAMES_MALE[classOrder[id]])
 			end
 			SetHeaderAttributes(header, config)
 		end
@@ -1568,7 +1767,7 @@ function LUF:ReloadHeaderUnits(headerUnit)
 	
 	if headerUnit == "raid" then
 		if not self.frameIndex["raid1"] then return end
-		for id=1,8 do
+		for id=1,10 do
 			header = self.frameIndex["raid"..id]
 			SetHeaderSettings(header)
 		end
@@ -1619,11 +1818,12 @@ frame:RegisterEvent("PLAYER_LOGIN")
 frame:RegisterEvent("ADDON_LOADED")
 frame:RegisterEvent("PLAYER_REGEN_DISABLED")
 frame:RegisterEvent("PLAYER_REGEN_ENABLED")
-frame:SetScript("OnEvent", function(self, event, addon)
+frame:RegisterEvent("PLAYER_ENTERING_WORLD")
+frame:SetScript("OnEvent", function(self, event, arg1)
 	if( event == "PLAYER_LOGIN" ) then
 		LUF:OnLoad()
 		self:UnregisterEvent("PLAYER_LOGIN")
-	elseif( event == "ADDON_LOADED" and ( addon == "Blizzard_ArenaUI" or addon == "Blizzard_CompactRaidFrames" ) and not LUF.InCombatLockdown) then
+	elseif( event == "ADDON_LOADED" and ( arg1 == "Blizzard_ArenaUI" or arg1 == "Blizzard_CompactRaidFrames" ) and not LUF.InCombatLockdown) then
 		LUF:HideBlizzardFrames()
 	elseif event == "PLAYER_REGEN_DISABLED" then
 		LUF.InCombatLockdown = true
@@ -1652,6 +1852,19 @@ frame:SetScript("OnEvent", function(self, event, addon)
 	elseif event == "GROUP_ROSTER_UPDATE" then
 		if not LUF.InCombatLockdown then
 			LUF:AutoswitchProfile(event)
+		else
+			queuedEvent = event
+		end
+	elseif event == "PLAYER_ENTERING_WORLD" then
+		frame:RegisterEvent("ACTIVE_TALENT_GROUP_CHANGED")
+		if not LUF.InCombatLockdown then
+			LUF:AutoswitchProfile(event)
+		else
+			queuedEvent = event
+		end
+	elseif event == "ACTIVE_TALENT_GROUP_CHANGED" then
+		if not LUF.InCombatLockdown then
+			LUF:AutoswitchProfile(event, arg1)
 		else
 			queuedEvent = event
 		end

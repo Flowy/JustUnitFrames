@@ -2,9 +2,6 @@ LUF = select(2, ...)
 
 local oUF = LUF.oUF
 
-local LibClassicCasterino = LibStub('LibClassicCasterino', true)
-local UnitCastingInfo = CastingInfo
-
 LUF.overrides = {}
 
 local Spells = {
@@ -26,6 +23,7 @@ local Spells = {
 		["SHAMAN"] = 403, -- Lightning Bolt
 		["WARLOCK"] = 686, -- Shadow Bolt
 		["WARRIOR"] = 100, -- Taunt
+		["DEATHKNIGHT"] = 49576,-- Deathgrip
 	},
 }
 
@@ -51,7 +49,9 @@ local function spellCheck(unit)
 end
 
 local function measureDistance(unit)
-	if CheckInteractDistance(unit, 3) then
+	if not UnitIsVisible(unit) or not UnitInPhase(unit) then
+		return 1000
+	elseif CheckInteractDistance(unit, 3) then
 		return 10
 	elseif CheckInteractDistance(unit, 4) then
 		return 30
@@ -214,10 +214,20 @@ end
 LUF.overrides["CastBar"] = {}
 LUF.overrides["CastBar"].PostCastStart = function(self, unit)
 	if UnitCastingInfo(unit) then
-		local castColor = LUF.db.profile.colors.cast
+		local castColor
+		if select(8,UnitCastingInfo(unit)) then
+			castColor = LUF.db.profile.colors.noninterruptible
+		else
+			castColor = LUF.db.profile.colors.cast
+		end
 		self:SetStatusBarColor(castColor.r, castColor.g, castColor.b)
 	else
-		local chanColor = LUF.db.profile.colors.channel
+		local chanColor
+		if select(7,UnitChannelInfo(unit)) then
+			chanColor = LUF.db.profile.colors.noninterruptible
+		else
+			chanColor = LUF.db.profile.colors.channel
+		end
 		self:SetStatusBarColor(chanColor.r, chanColor.g, chanColor.b)
 	end
 end
@@ -233,7 +243,7 @@ LUF.overrides["Totems"].Update = function(self)
 	end
 end
 
-LUF.overrides["Totems"].PostUpdate = function(self, slot, haveTotem, name, start, duration, icon)
+LUF.overrides["Totems"].PostTotemUpdate = function(self)
 	local mod = self[1]:GetParent()
 	mod:Show()
 	for i=1,4 do
@@ -247,9 +257,42 @@ LUF.overrides["Totems"].PostUpdate = function(self, slot, haveTotem, name, start
 	LUF.PlaceModules(mod:GetParent())
 end
 
+LUF.overrides["Ghoul"] = {}
+LUF.overrides["Ghoul"].PostUpdate = function(self)
+	if select(3,GetTotemInfo(1)) == 0 and self.autoHide or UnitHasVehicleUI('player') then
+		self:Hide()
+		self.isDisabled = true
+	else
+		self:Show()
+		self.isDisabled = nil
+	end
+	LUF.PlaceModules(self:GetParent())
+end
+
 LUF.overrides["AdditionalPower"] = {}
 LUF.overrides["AdditionalPower"].PostUpdateVisibility = function(self, visible, isEnabled)
 	LUF.PlaceModules(self:GetParent())
+end
+
+LUF.overrides["Runes"] = {}
+LUF.overrides["Runes"].Update = function(self, event)
+	local Runes = self.Runes
+	local x, y = (self:GetWidth() - 5) / 6 , self:GetHeight()
+	for i=1, 6 do
+		Runes[i]:SetSize(x, y)
+		Runes[i]:ClearAllPoints()
+		Runes[i]:SetPoint("BOTTOMLEFT", self, "BOTTOMLEFT", ((i - 1) * (x + 1)), 0)
+	end
+end
+
+LUF.overrides["Runes"].PostUpdate = function(self, runemap, hasVehicle)
+	local mod = self[1]:GetParent()
+
+	if hasVehicle and not mod.isDisabled or not hasVehicle and mod.isDisabled then
+		mod:SetShown(mod.isDisabled)
+		mod.isDisabled = not mod.isDisabled
+		LUF.PlaceModules(mod:GetParent())
+	end
 end
 
 LUF.overrides["ComboPoints"] = {}
@@ -267,11 +310,10 @@ LUF.overrides["ComboPoints"].Update = function(self)
 	end
 end
 
-LUF.overrides["ComboPoints"].PostUpdate = function(self, cur, max, hasMaxChanged, powerType)
+LUF.overrides["ComboPoints"].PostUpdate = function(self, cur)
 	local mod = self[1]:GetParent()
-	local cp = GetComboPoints("player", "target")
-	mod.isDisabled = not self.isEnabled
-	if (not cp or cp ==0) and mod.autoHide or mod.isDisabled then
+
+	if (not cur or cur ==0) and mod.autoHide or not self.isEnabled then
 		mod:Hide()
 	else
 		mod:Show()
@@ -334,11 +376,5 @@ LUF.overrides["Target"].PostUpdate = function(self, event)
 		end
 	else
 		currentTargetGUID = nil
-	end
-end
-
-if LibClassicCasterino then
-	UnitCastingInfo = function(unit)
-		return LibClassicCasterino:UnitCastingInfo(unit)
 	end
 end

@@ -68,7 +68,6 @@ in the `oUF.Tags.SharedEvents` table as follows: `oUF.Tags.SharedEvents.EVENT_NA
 local _, ns = ...
 local oUF = ns.oUF
 local Private = oUF.Private
-local LCC = LibStub('LibClassicCasterino', true)
 local LHC = LibStub("LibHealComm-4.0")
 local LT = LibStub("LibTargeted")
 
@@ -110,7 +109,6 @@ local _ENV = {
 			end
 		end
 	end,
-	UnitHasHealthData = function(unit) return not UnitPlayerControlled(unit) or UnitIsUnit("player", unit) or UnitIsUnit("pet", unit) or UnitPlayerOrPetInParty(unit) or UnitPlayerOrPetInRaid(unit) end,
 	DruidForms = {
 		[24858] = GetSpellInfo(24858), --moonkin
 		[1066] = GetSpellInfo(1066), -- seal
@@ -133,14 +131,14 @@ local _ENV = {
 			rawset(tbl, val, val)
 			return val
 	end}),
-	UnitCastingInfo = function(unit) return LCC:UnitCastingInfo(unit) end,
-	UnitChannelInfo = function(unit) return LCC:UnitChannelInfo(unit) end,
 	RARE = strmatch(GARRISON_MISSION_RARE,"%a*"),
 	GHOST = GetSpellInfo(8326),
 	LHC = LHC,
 	LT = LT,
 	GetHealTimeFrame = function() return oUF.TagsWithHealTimeFrame or 4 end,
 	GetShowHots = function() if oUF.TagsWithHealDisableHots then return LHC.DIRECT_HEALS else return LHC.ALL_HEALS end end,
+	DruidPower = function() if oUF.bearEnergy and UnitPowerType('player') == 1 then return UnitPower('player', 3) end return UnitPower('player', 0) end,
+	DruidPowerMax = function() if oUF.bearEnergy and UnitPowerType('player') == 1 then return UnitPowerMax('player', 3) end return UnitPowerMax('player', 0) end,
 }
 _ENV.ColorGradient = function(...)
 	return _ENV._FRAME:ColorGradient(...)
@@ -154,7 +152,15 @@ local tagStrings = {
 	end]],
 
 	["nameafk"] = [[function(unit)
-		return UnitIsAFK(unit) and AFK or UnitName(unit)
+		if UnitIsAFK(unit) then return AFK end
+		local grptype, id = strmatch(gsub(unit,"pet",""), "^(%a+)(%d+)$")
+		if id and UnitHasVehicleUI(grptype..id) then
+			return UnitName(grptype..id)
+		elseif (unit == "player" or unit == "pet") and UnitHasVehicleUI("player") then
+			return UnitName("player")
+		else
+			return UnitName(unit) or ""
+		end
 	end]],
 
 	["afktime"] = [[function(unit)
@@ -402,7 +408,7 @@ local tagStrings = {
 
 	["hotheal"] = [[function(unit)
 		local mod = LHC:GetHealModifier(UnitGUID(unit)) or 1
-		local heal = LHC:GetHealAmount(UnitGUID(unit), bit.bor(LHC.HOT_HEALS, LHC.CHANNEL_HEALS), GetTime() + GetHealTimeFrame()) or 0
+		local heal = LHC:GetHealAmount(UnitGUID(unit), bit.bor(LHC.HOT_HEALS, LHC.CHANNEL_HEALS, LHC.BOMB_HEALS), GetTime() + GetHealTimeFrame()) or 0
 		if heal > 0 then
 			return math.floor(heal * mod)
 		end
@@ -460,12 +466,6 @@ local tagStrings = {
 			else
 				return DEAD
 			end
-		elseif not UnitHasHealthData(unit) then
-			if maxhp < 1 then
-				return "0%"
-			else
-				return math.ceil((hp / maxhp) * 100).."%"
-			end
 		end
 		return hp.."/"..maxhp
 	end]],
@@ -482,12 +482,6 @@ local tagStrings = {
 				return feignDeath
 			else
 				return DEAD
-			end
-		elseif not UnitHasHealthData(unit) then
-			if maxhp < 1 then
-				return "0%"
-			else
-				return math.ceil((hp / maxhp) * 100).."%"
 			end
 		end
 		return hp.."/"..maxhp.." "..math.ceil((UnitHealth(unit) / UnitHealthMax(unit)) * 100).."%"
@@ -507,12 +501,6 @@ local tagStrings = {
 			return GHOST
 		elseif not UnitIsConnected(unit) then
 			return FRIENDS_LIST_OFFLINE
-		elseif not UnitHasHealthData(unit) then
-			if maxhp < 1 then
-				return "0%"
-			else
-				return math.ceil((hp / maxhp) * 100).."%"
-			end
 		end
 		if hp > 1000000 then
 			hp = (math.floor(hp/10000)/100).."M"
@@ -541,12 +529,6 @@ local tagStrings = {
 			return GHOST
 		elseif not UnitIsConnected(unit) then
 			return FRIENDS_LIST_OFFLINE
-		elseif not UnitHasHealthData(unit) then
-			if maxhp < 1 then
-				return "0%"
-			else
-				return math.ceil((hp / maxhp) * 100).."%"
-			end
 		end
 		if hp > 1000000 then
 			hp = (math.floor(hp/10000)/100).."M"
@@ -732,13 +714,13 @@ local tagStrings = {
 
 	["druid:pp"] = [[function(unit)
 		if unit == "player" then
-			return UnitPower(unit, Enum.PowerType.Mana)
+			return DruidPower()
 		end
 	end]],
 
 	["druid:maxpp"] = [[function(unit)
 		if unit == "player" then
-			return UnitPowerMax(unit, Enum.PowerType.Mana)
+			return DruidPowerMax()
 		end
 	end]],
 
@@ -746,10 +728,10 @@ local tagStrings = {
 		if unit ~= "player" then
 			return
 		end
-		if UnitPowerMax(unit, Enum.PowerType.Mana)-UnitPower(unit, Enum.PowerType.Mana) == 0 then
+		if DruidPowerMax()-DruidPower() == 0 then
 			return
 		else
-			return UnitPower(unit, Enum.PowerType.Mana)-UnitPowerMax(unit, Enum.PowerType.Mana)
+			return DruidPower()-DruidPowerMax()
 		end
 	end]],
 
@@ -757,7 +739,7 @@ local tagStrings = {
 		if unit ~= "player" then
 			return
 		end
-		local mana,manamax = UnitPower(unit, Enum.PowerType.Mana),UnitPowerMax(unit, Enum.PowerType.Mana)
+		local mana,manamax = DruidPower(),DruidPowerMax()
 		if manamax == 0 then
 			return 0
 		else
@@ -795,7 +777,7 @@ local tagStrings = {
 		return Hex(color)
 	end]],
 
-	["name"] = [[function(unit) return UnitName(unit) or "" end]],
+	["name"] = [[function(unit) return UnitName(unit) or ""	end]],
 
 	["shortname"] = [[function(unit, realunit, var)
 		local length = tonumber(var) or 3
@@ -843,7 +825,11 @@ local tagStrings = {
 	end]],
 
 	["cpoints"] = [[function(unit)
-		return GetComboPoints("player", "target")
+		if UnitHasVehicleUI("player") then
+			return GetComboPoints("pet", "target")
+		else
+			return GetComboPoints("player", "target")
+		end
 	end]],
 
 	["rare"] = [[function(unit)
@@ -1106,7 +1092,7 @@ local tagStrings = {
 	end]],
 
 	["healthcolor"] = [[function(unit)
-		local percent = UnitHealth(unit) / UnitHealthMax(unit)
+		local percent = UnitHealth(unit) / max(UnitHealthMax(unit),1)
 		if( percent >= 1 ) then return Hex(LUF.db.profile.colors.green.r, LUF.db.profile.colors.green.g, LUF.db.profile.colors.green.b) end
 		if( percent == 0 ) then return Hex(LUF.db.profile.colors.red.r, LUF.db.profile.colors.red.g, LUF.db.profile.colors.red.b) end
 		
@@ -1179,7 +1165,7 @@ local tagStrings = {
 			return (value-min).."/"..(max-min).." "..name
 		end
 	end]],
-	
+
 	["enumtargeting"] = [[function(unit)
 		local num = LT:GetUnitTargetedCount(unit)
 		if num > 0 then
@@ -1243,14 +1229,6 @@ local vars = setmetatable({}, {
 _ENV._VARS = vars
 
 local LibEvents = {
-	["UNIT_SPELLCAST_START"] = LCC,
-	["UNIT_SPELLCAST_DELAYED"] = LCC,
-	["UNIT_SPELLCAST_STOP"] = LCC,
-	["UNIT_SPELLCAST_FAILED"] = LCC,
-	["UNIT_SPELLCAST_INTERRUPTED"] = LCC,
-	["UNIT_SPELLCAST_CHANNEL_START"] = LCC,
-	["UNIT_SPELLCAST_CHANNEL_UPDATE"] = LCC,
-	["UNIT_SPELLCAST_CHANNEL_STOP"] = LCC,
 	["HealComm_HealStarted"] = LHC,
 	["HealComm_HealUpdated"] = LHC,
 	["HealComm_HealDelayed"] = LHC,
@@ -1277,7 +1255,7 @@ local tagEvents = {
 	["guild"]               = "UNIT_NAME_UPDATE",
 	["guildrank"]           = "UNIT_NAME_UPDATE",
 	["incheal"]             = "HealComm_HealStarted HealComm_HealUpdated HealComm_HealStopped HealComm_ModifierChanged HealComm_GUIDDisappeared",
-	["directheal"] 			= "HealComm_HealStarted HealComm_HealUpdated HealComm_HealStopped HealComm_ModifierChanged HealComm_GUIDDisappeared",
+	["directheal"]			= "HealComm_HealStarted HealComm_HealUpdated HealComm_HealStopped HealComm_ModifierChanged HealComm_GUIDDisappeared",
 	["incownheal"]          = "HealComm_HealStarted HealComm_HealUpdated HealComm_HealStopped HealComm_ModifierChanged HealComm_GUIDDisappeared",
 	["incpreheal"]          = "HealComm_HealStarted HealComm_HealUpdated HealComm_HealStopped HealComm_ModifierChanged HealComm_GUIDDisappeared",
 	["incafterheal"]        = "HealComm_HealStarted HealComm_HealUpdated HealComm_HealStopped HealComm_ModifierChanged HealComm_GUIDDisappeared",
@@ -1320,7 +1298,7 @@ local tagEvents = {
 	["abbrev:name"]         = "UNIT_NAME_UPDATE",
 	["server"]              = "UNIT_NAME_UPDATE",
 	["status"]              = "UNIT_HEALTH UNIT_CONNECTION",
-	["cpoints"]             = "UNIT_POWER_FREQUENT",
+	["cpoints"]             = "UNIT_POWER_FREQUENT UNIT_POWER_UPDATE",
 	["rare"]                = "UNIT_CLASSIFICATION_CHANGED",
 	["elite"]               = "UNIT_CLASSIFICATION_CHANGED",
 	["classification"]      = "UNIT_CLASSIFICATION_CHANGED",
@@ -1343,14 +1321,13 @@ local tagEvents = {
 	["color"]               = "PLAYER_LOGIN", -- Dummy
 	["br"]                  = "PLAYER_LOGIN", -- Dummy
 	["castname"]            = "UNIT_SPELLCAST_START UNIT_SPELLCAST_CHANNEL_START UNIT_SPELLCAST_STOP",
-	["xp"]                  = "PLAYER_XP_UPDATE UPDATE_EXHAUSTION",
-	["percxp"]              = "PLAYER_XP_UPDATE",
-	["xpPet"]               = "UNIT_PET_EXPERIENCE UNIT_LEVEL",
-	["percxpPet"]           = "UNIT_PET_EXPERIENCE UNIT_LEVEL",
+	["xp"]                  = "PLAYER_XP_UPDATE UPDATE_EXHAUSTION UNIT_PET_EXPERIENCE UNIT_LEVEL",
+	["percxp"]              = "PLAYER_XP_UPDATE UNIT_PET_EXPERIENCE UNIT_LEVEL",
 	["rep"]                 = "UPDATE_FACTION",
 }
 
 local unitlessEvents = {
+	UNIT_POWER_UPDATE = true,
 	GROUP_ROSTER_UPDATE = true,
 	PARTY_LEADER_CHANGED = true,
 	PLAYER_LEVEL_UP = true,
@@ -1424,7 +1401,6 @@ local onUpdateDelay = {}
 onUpdateDelay["numtargeting"] = 0.5
 onUpdateDelay["cnumtargeting"] = 0.5
 onUpdateDelay["afktime"] = 0.5
-onUpdateDelay["casttime"] = 0.1
 
 local escapeSequences = {
 	["||c"] = "|c",
