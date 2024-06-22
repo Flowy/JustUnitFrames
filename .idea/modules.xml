@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/JustUnitFrames.iml" filepath="$PROJECT_DIR$/JustUnitFrames.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../../lib/IntelliJ-IDEA-Lua-IDE-WoW-API/WoW API.iml" filepath="$PROJECT_DIR$/../../lib/IntelliJ-IDEA-Lua-IDE-WoW-API/WoW API.iml" />
+    </modules>
+  </component>
+</project>
